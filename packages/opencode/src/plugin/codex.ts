@@ -2,6 +2,7 @@ import type { Hooks, PluginInput } from "@opencode-ai/plugin"
 import { Log } from "../util/log"
 import { Installation } from "../installation"
 import { Auth, OAUTH_DUMMY_KEY } from "../auth"
+import { OpenAIRegistry } from "../auth/openai-registry"
 import os from "os"
 
 const log = Log.create({ service: "plugin.codex" })
@@ -405,16 +406,18 @@ export async function CodexAuthPlugin(input: PluginInput): Promise<Hooks> {
               log.info("refreshing codex access token")
               const tokens = await refreshAccessToken(currentAuth.refresh)
               const newAccountId = extractAccountId(tokens) || authWithAccount.accountId
+              const next = {
+                type: "oauth" as const,
+                refresh: tokens.refresh_token,
+                access: tokens.access_token,
+                expires: Date.now() + (tokens.expires_in ?? 3600) * 1000,
+                ...(newAccountId && { accountId: newAccountId }),
+              }
               await input.client.auth.set({
                 path: { id: "openai" },
-                body: {
-                  type: "oauth",
-                  refresh: tokens.refresh_token,
-                  access: tokens.access_token,
-                  expires: Date.now() + (tokens.expires_in ?? 3600) * 1000,
-                  ...(newAccountId && { accountId: newAccountId }),
-                },
+                body: next,
               })
+              await OpenAIRegistry.updateActive(next)
               currentAuth.access = tokens.access_token
               authWithAccount.accountId = newAccountId
             }

@@ -2044,6 +2044,21 @@ export type ProviderAuthAuthorization = {
   instructions: string
 }
 
+export type OpenAiProfile = {
+  access: string
+  refresh: string
+  expires: number
+  accountId?: string
+  updatedAt: number
+}
+
+export type OpenAiProfileStore = {
+  active?: string
+  profiles: {
+    [key: string]: OpenAiProfile
+  }
+}
+
 export type Symbol = {
   name: string
   kind: number
@@ -4121,6 +4136,150 @@ export type ProviderOauthCallbackResponses = {
 }
 
 export type ProviderOauthCallbackResponse = ProviderOauthCallbackResponses[keyof ProviderOauthCallbackResponses]
+
+export type ProviderOpenaiProfilesListData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/provider/openai/profiles"
+}
+
+export type ProviderOpenaiProfilesListResponses = {
+  /**
+   * List OpenAI profiles
+   */
+  200: OpenAiProfileStore
+}
+
+export type ProviderOpenaiProfilesListResponse =
+  ProviderOpenaiProfilesListResponses[keyof ProviderOpenaiProfilesListResponses]
+
+export type ProviderOpenaiProfilesSaveData = {
+  body?: {
+    label: string
+    overwrite?: boolean
+  }
+  path?: never
+  query?: {
+    directory?: string
+  }
+  url: "/provider/openai/profiles"
+}
+
+export type ProviderOpenaiProfilesSaveErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type ProviderOpenaiProfilesSaveError = ProviderOpenaiProfilesSaveErrors[keyof ProviderOpenaiProfilesSaveErrors]
+
+export type ProviderOpenaiProfilesSaveResponses = {
+  /**
+   * Profile saved
+   */
+  200: boolean
+}
+
+export type ProviderOpenaiProfilesSaveResponse =
+  ProviderOpenaiProfilesSaveResponses[keyof ProviderOpenaiProfilesSaveResponses]
+
+export type ProviderOpenaiProfilesUseData = {
+  body?: never
+  path: {
+    label: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/provider/openai/profiles/{label}/use"
+}
+
+export type ProviderOpenaiProfilesUseErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type ProviderOpenaiProfilesUseError = ProviderOpenaiProfilesUseErrors[keyof ProviderOpenaiProfilesUseErrors]
+
+export type ProviderOpenaiProfilesUseResponses = {
+  /**
+   * Profile activated
+   */
+  200: boolean
+}
+
+export type ProviderOpenaiProfilesUseResponse =
+  ProviderOpenaiProfilesUseResponses[keyof ProviderOpenaiProfilesUseResponses]
+
+export type ProviderOpenaiProfilesRemoveData = {
+  body?: never
+  path: {
+    label: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/provider/openai/profiles/{label}"
+}
+
+export type ProviderOpenaiProfilesRemoveErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type ProviderOpenaiProfilesRemoveError =
+  ProviderOpenaiProfilesRemoveErrors[keyof ProviderOpenaiProfilesRemoveErrors]
+
+export type ProviderOpenaiProfilesRemoveResponses = {
+  /**
+   * Profile removed
+   */
+  200: boolean
+}
+
+export type ProviderOpenaiProfilesRemoveResponse =
+  ProviderOpenaiProfilesRemoveResponses[keyof ProviderOpenaiProfilesRemoveResponses]
+
+export type ProviderOpenaiProfilesRenameData = {
+  body?: {
+    label: string
+  }
+  path: {
+    label: string
+  }
+  query?: {
+    directory?: string
+  }
+  url: "/provider/openai/profiles/{label}/rename"
+}
+
+export type ProviderOpenaiProfilesRenameErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type ProviderOpenaiProfilesRenameError =
+  ProviderOpenaiProfilesRenameErrors[keyof ProviderOpenaiProfilesRenameErrors]
+
+export type ProviderOpenaiProfilesRenameResponses = {
+  /**
+   * Profile renamed
+   */
+  200: boolean
+}
+
+export type ProviderOpenaiProfilesRenameResponse =
+  ProviderOpenaiProfilesRenameResponses[keyof ProviderOpenaiProfilesRenameResponses]
 
 export type FindTextData = {
   body?: never

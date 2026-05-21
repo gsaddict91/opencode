@@ -154,6 +154,14 @@ opencode auth logout
 
 ---
 
+#### Manage profiles
+
+OpenAI account profiles live in `~/.local/share/opencode/openai-accounts.json`, next to `auth.json`.
+Use `opencode auth openai:list`, `opencode auth openai:save <label>`, `opencode auth openai:use`, `opencode auth openai:remove`, and `opencode auth openai:rename` to manage them.
+Switching profiles only affects new requests, and in-flight requests keep their current tokens.
+
+---
+
 ### github
 
 Manage the GitHub agent for repository automation.

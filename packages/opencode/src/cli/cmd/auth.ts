@@ -11,8 +11,32 @@ import { Global } from "../../global"
 import { Plugin } from "../../plugin"
 import { Instance } from "../../project/instance"
 import type { Hooks } from "@opencode-ai/plugin"
+import { OpenAIRegistry } from "../../auth/openai-registry"
+import { Locale } from "../../util/locale"
 
 type PluginAuth = NonNullable<Hooks["auth"]>
+
+async function saveOpenAIProfile(auth: Auth.Info) {
+  if (auth.type !== "oauth") return
+  const label = await prompts.text({
+    message: "Label this ChatGPT account",
+    placeholder: "work",
+    validate: (value) => (value && value.trim().length > 0 ? undefined : "Required"),
+  })
+  if (prompts.isCancel(label)) return
+  const trimmed = label.trim()
+  const store = await OpenAIRegistry.list()
+  const exists = Boolean(store.profiles[trimmed])
+  if (exists) {
+    const confirm = await prompts.confirm({
+      message: `Overwrite existing label "${trimmed}"?`,
+      initialValue: false,
+    })
+    if (!confirm || prompts.isCancel(confirm)) return
+  }
+  await OpenAIRegistry.save(trimmed, auth, { overwrite: true, activate: true })
+  prompts.log.success(`Saved ChatGPT profile ${UI.Style.TEXT_DIM}${trimmed}`)
+}
 
 /**
  * Handle plugin-based authentication flow.
@@ -83,13 +107,17 @@ async function handlePluginAuth(plugin: { auth: PluginAuth }, provider: string):
         const saveProvider = result.provider ?? provider
         if ("refresh" in result) {
           const { type: _, provider: __, refresh, access, expires, ...extraFields } = result
-          await Auth.set(saveProvider, {
+          const info: Auth.Info = {
             type: "oauth",
             refresh,
             access,
             expires,
             ...extraFields,
-          })
+          }
+          await Auth.set(saveProvider, info)
+          if (saveProvider === "openai") {
+            await saveOpenAIProfile(info)
+          }
         }
         if ("key" in result) {
           await Auth.set(saveProvider, {
@@ -115,13 +143,17 @@ async function handlePluginAuth(plugin: { auth: PluginAuth }, provider: string):
         const saveProvider = result.provider ?? provider
         if ("refresh" in result) {
           const { type: _, provider: __, refresh, access, expires, ...extraFields } = result
-          await Auth.set(saveProvider, {
+          const info: Auth.Info = {
             type: "oauth",
             refresh,
             access,
             expires,
             ...extraFields,
-          })
+          }
+          await Auth.set(saveProvider, info)
+          if (saveProvider === "openai") {
+            await saveOpenAIProfile(info)
+          }
         }
         if ("key" in result) {
           await Auth.set(saveProvider, {
@@ -163,7 +195,16 @@ export const AuthCommand = cmd({
   command: "auth",
   describe: "manage credentials",
   builder: (yargs) =>
-    yargs.command(AuthLoginCommand).command(AuthLogoutCommand).command(AuthListCommand).demandCommand(),
+    yargs
+      .command(AuthLoginCommand)
+      .command(AuthLogoutCommand)
+      .command(AuthListCommand)
+      .command(AuthOpenAIListCommand)
+      .command(AuthOpenAISaveCommand)
+      .command(AuthOpenAIUseCommand)
+      .command(AuthOpenAIRemoveCommand)
+      .command(AuthOpenAIRenameCommand)
+      .demandCommand(),
   async handler() {},
 })
 
@@ -396,5 +437,196 @@ export const AuthLogoutCommand = cmd({
     if (prompts.isCancel(providerID)) throw new UI.CancelledError()
     await Auth.remove(providerID)
     prompts.outro("Logout successful")
+  },
+})
+
+export const AuthOpenAIListCommand = cmd({
+  command: "openai:list",
+  describe: "list OpenAI OAuth profiles",
+  async handler() {
+    UI.empty()
+    const registryPath = path.join(Global.Path.data, "openai-accounts.json")
+    const homedir = os.homedir()
+    const displayPath = registryPath.startsWith(homedir) ? registryPath.replace(homedir, "~") : registryPath
+    prompts.intro(`ChatGPT profiles ${UI.Style.TEXT_DIM}${displayPath}`)
+    const store = await OpenAIRegistry.list()
+    const entries = Object.entries(store.profiles)
+    if (entries.length === 0) {
+      prompts.log.warn("No ChatGPT profiles found")
+      prompts.outro("0 profiles")
+      return
+    }
+    for (const [label, profile] of entries) {
+      const active = store.active === label ? "*" : " "
+      const updated = Locale.todayTimeOrDateTime(profile.updatedAt)
+      const accountId = profile.accountId ? ` · ${profile.accountId}` : ""
+      prompts.log.info(`${active} ${label} ${UI.Style.TEXT_DIM}${updated}${accountId}`)
+    }
+    prompts.outro(`${entries.length} profile` + (entries.length === 1 ? "" : "s"))
+  },
+})
+
+export const AuthOpenAISaveCommand = cmd({
+  command: "openai:save [label]",
+  describe: "save current ChatGPT OAuth into the registry",
+  builder: (yargs) =>
+    yargs.positional("label", {
+      describe: "Profile label",
+      type: "string",
+    }),
+  async handler(args) {
+    UI.empty()
+    const auth = await Auth.get("openai")
+    if (!auth || auth.type !== "oauth") {
+      prompts.log.error("No ChatGPT OAuth credentials found in auth.json")
+      return
+    }
+    const label = args.label
+      ? args.label
+      : await prompts.text({
+          message: "Label this ChatGPT profile",
+          placeholder: "work",
+          validate: (value) => (value && value.trim().length > 0 ? undefined : "Required"),
+        })
+    if (prompts.isCancel(label)) throw new UI.CancelledError()
+    const trimmed = label.trim()
+    const store = await OpenAIRegistry.list()
+    if (store.profiles[trimmed]) {
+      const confirm = await prompts.confirm({
+        message: `Overwrite existing label "${trimmed}"?`,
+        initialValue: false,
+      })
+      if (!confirm || prompts.isCancel(confirm)) return
+    }
+    await OpenAIRegistry.save(trimmed, auth, { overwrite: true, activate: true })
+    prompts.log.success(`Saved ChatGPT profile ${UI.Style.TEXT_DIM}${trimmed}`)
+  },
+})
+
+export const AuthOpenAIUseCommand = cmd({
+  command: "openai:use [label]",
+  describe: "switch active ChatGPT profile",
+  builder: (yargs) =>
+    yargs.positional("label", {
+      describe: "Profile label",
+      type: "string",
+    }),
+  async handler(args) {
+    UI.empty()
+    const store = await OpenAIRegistry.list()
+    const labels = Object.keys(store.profiles)
+    if (labels.length === 0) {
+      prompts.log.error("No ChatGPT profiles found")
+      return
+    }
+    const label = args.label
+      ? args.label
+      : await prompts.select({
+          message: "Select ChatGPT profile",
+          options: labels.map((item) => ({
+            label: item,
+            value: item,
+            hint: store.active === item ? "active" : undefined,
+          })),
+        })
+    if (prompts.isCancel(label)) throw new UI.CancelledError()
+    const profile = store.profiles[label]
+    if (!profile) {
+      prompts.log.error(`Profile not found: ${label}`)
+      return
+    }
+    await Auth.set("openai", OpenAIRegistry.toAuth(profile))
+    await OpenAIRegistry.setActive(label)
+    prompts.log.success(`Switched to ${label}`)
+  },
+})
+
+export const AuthOpenAIRemoveCommand = cmd({
+  command: "openai:remove [label]",
+  describe: "remove a ChatGPT profile",
+  builder: (yargs) =>
+    yargs.positional("label", {
+      describe: "Profile label",
+      type: "string",
+    }),
+  async handler(args) {
+    UI.empty()
+    const store = await OpenAIRegistry.list()
+    const labels = Object.keys(store.profiles)
+    if (labels.length === 0) {
+      prompts.log.error("No ChatGPT profiles found")
+      return
+    }
+    const label = args.label
+      ? args.label
+      : await prompts.select({
+          message: "Remove ChatGPT profile",
+          options: labels.map((item) => ({
+            label: item,
+            value: item,
+            hint: store.active === item ? "active" : undefined,
+          })),
+        })
+    if (prompts.isCancel(label)) throw new UI.CancelledError()
+    if (!store.profiles[label]) {
+      prompts.log.error(`Profile not found: ${label}`)
+      return
+    }
+    await OpenAIRegistry.remove(label)
+    prompts.log.success(`Removed ${label}`)
+  },
+})
+
+export const AuthOpenAIRenameCommand = cmd({
+  command: "openai:rename [label] [next]",
+  describe: "rename a ChatGPT profile",
+  builder: (yargs) =>
+    yargs
+      .positional("label", {
+        describe: "Current profile label",
+        type: "string",
+      })
+      .positional("next", {
+        describe: "New label",
+        type: "string",
+      }),
+  async handler(args) {
+    UI.empty()
+    const store = await OpenAIRegistry.list()
+    const labels = Object.keys(store.profiles)
+    if (labels.length === 0) {
+      prompts.log.error("No ChatGPT profiles found")
+      return
+    }
+    const label = args.label
+      ? args.label
+      : await prompts.select({
+          message: "Rename ChatGPT profile",
+          options: labels.map((item) => ({
+            label: item,
+            value: item,
+            hint: store.active === item ? "active" : undefined,
+          })),
+        })
+    if (prompts.isCancel(label)) throw new UI.CancelledError()
+    if (!store.profiles[label]) {
+      prompts.log.error(`Profile not found: ${label}`)
+      return
+    }
+    const next = args.next
+      ? args.next
+      : await prompts.text({
+          message: "New label",
+          placeholder: "personal",
+          validate: (value) => (value && value.trim().length > 0 ? undefined : "Required"),
+        })
+    if (prompts.isCancel(next)) throw new UI.CancelledError()
+    const trimmed = next.trim()
+    if (store.profiles[trimmed]) {
+      prompts.log.error(`Profile already exists: ${trimmed}`)
+      return
+    }
+    await OpenAIRegistry.rename(label, trimmed)
+    prompts.log.success(`Renamed ${label} to ${trimmed}`)
   },
 })

@@ -4040,6 +4040,271 @@
         ]
       }
     },
+    "/provider/openai/profiles": {
+      "get": {
+        "operationId": "provider.openaiProfiles.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "List OpenAI profiles",
+        "description": "List saved OpenAI OAuth profiles and the active label.",
+        "responses": {
+          "200": {
+            "description": "List OpenAI profiles",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAIProfileStore"
+                }
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.provider.openaiProfiles.list({\n  ...\n})"
+          }
+        ]
+      },
+      "post": {
+        "operationId": "provider.openaiProfiles.save",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "summary": "Save OpenAI profile",
+        "description": "Save the current OpenAI OAuth credentials under a label.",
+        "responses": {
+          "200": {
+            "description": "Profile saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "label": {
+                    "type": "string"
+                  },
+                  "overwrite": {
+                    "type": "boolean"
+                  }
+                },
+                "required": ["label"]
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.provider.openaiProfiles.save({\n  ...\n})"
+          }
+        ]
+      }
+    },
+    "/provider/openai/profiles/{label}/use": {
+      "post": {
+        "operationId": "provider.openaiProfiles.use",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "label",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "summary": "Use OpenAI profile",
+        "description": "Activate a saved OpenAI profile and copy it into the current auth schema.",
+        "responses": {
+          "200": {
+            "description": "Profile activated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.provider.openaiProfiles.use({\n  ...\n})"
+          }
+        ]
+      }
+    },
+    "/provider/openai/profiles/{label}": {
+      "delete": {
+        "operationId": "provider.openaiProfiles.remove",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "label",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "summary": "Remove OpenAI profile",
+        "description": "Remove a saved OpenAI profile.",
+        "responses": {
+          "200": {
+            "description": "Profile removed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.provider.openaiProfiles.remove({\n  ...\n})"
+          }
+        ]
+      }
+    },
+    "/provider/openai/profiles/{label}/rename": {
+      "post": {
+        "operationId": "provider.openaiProfiles.rename",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "label",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "summary": "Rename OpenAI profile",
+        "description": "Rename a saved OpenAI profile label.",
+        "responses": {
+          "200": {
+            "description": "Profile renamed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "label": {
+                    "type": "string"
+                  }
+                },
+                "required": ["label"]
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.provider.openaiProfiles.rename({\n  ...\n})"
+          }
+        ]
+      }
+    },
     "/find": {
       "get": {
         "operationId": "find.text",
@@ -10572,6 +10837,45 @@
           }
         },
         "required": ["url", "method", "instructions"]
+      },
+      "OpenAIProfile": {
+        "type": "object",
+        "properties": {
+          "access": {
+            "type": "string"
+          },
+          "refresh": {
+            "type": "string"
+          },
+          "expires": {
+            "type": "number"
+          },
+          "accountId": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "number"
+          }
+        },
+        "required": ["access", "refresh", "expires", "updatedAt"]
+      },
+      "OpenAIProfileStore": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "string"
+          },
+          "profiles": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "$ref": "#/components/schemas/OpenAIProfile"
+            }
+          }
+        },
+        "required": ["profiles"]
       },
       "Symbol": {
         "type": "object",

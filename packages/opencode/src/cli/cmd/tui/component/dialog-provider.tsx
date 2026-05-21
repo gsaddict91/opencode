@@ -5,6 +5,7 @@ import { DialogSelect } from "@tui/ui/dialog-select"
 import { useDialog } from "@tui/ui/dialog"
 import { useSDK } from "../context/sdk"
 import { DialogPrompt } from "../ui/dialog-prompt"
+import { DialogConfirm } from "@tui/ui/dialog-confirm"
 import { Link } from "../ui/link"
 import { useTheme } from "../context/theme"
 import { TextAttributes } from "@opentui/core"
@@ -44,67 +45,66 @@ export function createDialogProviderOptions() {
           category: provider.id in PROVIDER_PRIORITY ? "Popular" : "Other",
           footer: isConnected ? "Connected" : undefined,
           async onSelect() {
-            const methods = sync.data.provider_auth[provider.id] ?? [
-              {
-                type: "api",
-                label: "API key",
-              },
-            ]
-            let index: number | null = 0
-            if (methods.length > 1) {
-              index = await new Promise<number | null>((resolve) => {
-                dialog.replace(
-                  () => (
-                    <DialogSelect
-                      title="Select auth method"
-                      options={methods.map((x, index) => ({
-                        title: x.label,
-                        value: index,
-                      }))}
-                      onSelect={(option) => resolve(option.value)}
-                    />
-                  ),
-                  () => resolve(null),
-                )
-              })
-            }
-            if (index == null) return
-            const method = methods[index]
-            if (method.type === "oauth") {
-              const result = await sdk.client.provider.oauth.authorize({
-                providerID: provider.id,
-                method: index,
-              })
-              if (result.data?.method === "code") {
-                dialog.replace(() => (
-                  <CodeMethod
-                    providerID={provider.id}
-                    title={method.label}
-                    index={index}
-                    authorization={result.data!}
-                  />
-                ))
-              }
-              if (result.data?.method === "auto") {
-                dialog.replace(() => (
-                  <AutoMethod
-                    providerID={provider.id}
-                    title={method.label}
-                    index={index}
-                    authorization={result.data!}
-                  />
-                ))
-              }
-            }
-            if (method.type === "api") {
-              return dialog.replace(() => <ApiMethod providerID={provider.id} title={method.label} />)
-            }
+            await startProviderAuth(provider.id, dialog, sdk, sync)
           },
         }
       }),
     )
   })
   return options
+}
+
+export async function startProviderAuth(
+  providerID: string,
+  dialog: ReturnType<typeof useDialog>,
+  sdk: ReturnType<typeof useSDK>,
+  sync: ReturnType<typeof useSync>,
+) {
+  const methods = sync.data.provider_auth[providerID] ?? [
+    {
+      type: "api",
+      label: "API key",
+    },
+  ]
+  const index =
+    methods.length > 1
+      ? await new Promise<number | null>((resolve) => {
+          dialog.replace(
+            () => (
+              <DialogSelect
+                title="Select auth method"
+                options={methods.map((item, methodIndex) => ({
+                  title: item.label,
+                  value: methodIndex,
+                }))}
+                onSelect={(option) => resolve(option.value)}
+              />
+            ),
+            () => resolve(null),
+          )
+        })
+      : 0
+  if (index == null) return
+  const method = methods[index]
+  if (method.type === "oauth") {
+    const result = await sdk.client.provider.oauth.authorize({
+      providerID,
+      method: index,
+    })
+    if (result.data?.method === "code") {
+      dialog.replace(() => (
+        <CodeMethod providerID={providerID} title={method.label} index={index} authorization={result.data!} />
+      ))
+    }
+    if (result.data?.method === "auto") {
+      dialog.replace(() => (
+        <AutoMethod providerID={providerID} title={method.label} index={index} authorization={result.data!} />
+      ))
+    }
+  }
+  if (method.type === "api") {
+    dialog.replace(() => <ApiMethod providerID={providerID} title={method.label} />)
+  }
 }
 
 export function DialogProvider() {
@@ -143,6 +143,9 @@ function AutoMethod(props: AutoMethodProps) {
       dialog.clear()
       return
     }
+    if (props.providerID === "openai") {
+      await saveOpenAIProfile(dialog, sdk, toast)
+    }
     await sdk.client.instance.dispose()
     await sync.bootstrap()
     dialog.replace(() => <DialogModel providerID={props.providerID} />)
@@ -179,6 +182,7 @@ function CodeMethod(props: CodeMethodProps) {
   const sdk = useSDK()
   const sync = useSync()
   const dialog = useDialog()
+  const toast = useToast()
   const [error, setError] = createSignal(false)
 
   return (
@@ -192,6 +196,9 @@ function CodeMethod(props: CodeMethodProps) {
           code: value,
         })
         if (!error) {
+          if (props.providerID === "openai") {
+            await saveOpenAIProfile(dialog, sdk, toast)
+          }
           await sdk.client.instance.dispose()
           await sync.bootstrap()
           dialog.replace(() => <DialogModel providerID={props.providerID} />)
@@ -253,4 +260,40 @@ function ApiMethod(props: ApiMethodProps) {
       }}
     />
   )
+}
+
+async function saveOpenAIProfile(
+  dialog: ReturnType<typeof useDialog>,
+  sdk: ReturnType<typeof useSDK>,
+  toast: ReturnType<typeof useToast>,
+) {
+  const label = await DialogPrompt.show(dialog, "Label ChatGPT profile", {
+    placeholder: "work",
+  })
+  if (!label) return
+  const trimmed = label.trim()
+  if (!trimmed) return
+  const list = await sdk.client.provider.openaiProfiles.list()
+  if (list.error) {
+    toast.show({
+      variant: "error",
+      message: "Failed to load ChatGPT profiles",
+    })
+    return
+  }
+  const exists = Boolean(list.data?.profiles[trimmed])
+  const overwrite = exists ? await DialogConfirm.show(dialog, "Overwrite profile", `Replace "${trimmed}"?`) : true
+  if (!overwrite) return
+  const result = await sdk.client.provider.openaiProfiles.save({
+    label: trimmed,
+    overwrite,
+  })
+  if (result.error) {
+    toast.show({
+      variant: "error",
+      message: "Failed to save ChatGPT profile",
+    })
+    return
+  }
+  toast.show({ variant: "success", message: `Saved ${trimmed}` })
 }

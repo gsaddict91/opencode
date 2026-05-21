@@ -79,6 +79,15 @@ import type {
   ProviderOauthAuthorizeResponses,
   ProviderOauthCallbackErrors,
   ProviderOauthCallbackResponses,
+  ProviderOpenaiProfilesListResponses,
+  ProviderOpenaiProfilesRemoveErrors,
+  ProviderOpenaiProfilesRemoveResponses,
+  ProviderOpenaiProfilesRenameErrors,
+  ProviderOpenaiProfilesRenameResponses,
+  ProviderOpenaiProfilesSaveErrors,
+  ProviderOpenaiProfilesSaveResponses,
+  ProviderOpenaiProfilesUseErrors,
+  ProviderOpenaiProfilesUseResponses,
   PtyConnectErrors,
   PtyConnectResponses,
   PtyCreateErrors,
@@ -2116,6 +2125,185 @@ export class Oauth extends HeyApiClient {
   }
 }
 
+export class OpenaiProfiles extends HeyApiClient {
+  /**
+   * List OpenAI profiles
+   *
+   * List saved OpenAI OAuth profiles and the active label.
+   */
+  public list<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "directory" }] }])
+    return (options?.client ?? this.client).get<ProviderOpenaiProfilesListResponses, unknown, ThrowOnError>({
+      url: "/provider/openai/profiles",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Save OpenAI profile
+   *
+   * Save the current OpenAI OAuth credentials under a label.
+   */
+  public save<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      label?: string
+      overwrite?: boolean
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "body", key: "label" },
+            { in: "body", key: "overwrite" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      ProviderOpenaiProfilesSaveResponses,
+      ProviderOpenaiProfilesSaveErrors,
+      ThrowOnError
+    >({
+      url: "/provider/openai/profiles",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Use OpenAI profile
+   *
+   * Activate a saved OpenAI profile and copy it into the current auth schema.
+   */
+  public use<ThrowOnError extends boolean = false>(
+    parameters: {
+      label: string
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "label" },
+            { in: "query", key: "directory" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      ProviderOpenaiProfilesUseResponses,
+      ProviderOpenaiProfilesUseErrors,
+      ThrowOnError
+    >({
+      url: "/provider/openai/profiles/{label}/use",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Remove OpenAI profile
+   *
+   * Remove a saved OpenAI profile.
+   */
+  public remove<ThrowOnError extends boolean = false>(
+    parameters: {
+      label: string
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "label" },
+            { in: "query", key: "directory" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).delete<
+      ProviderOpenaiProfilesRemoveResponses,
+      ProviderOpenaiProfilesRemoveErrors,
+      ThrowOnError
+    >({
+      url: "/provider/openai/profiles/{label}",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Rename OpenAI profile
+   *
+   * Rename a saved OpenAI profile label.
+   */
+  public rename<ThrowOnError extends boolean = false>(
+    parameters: {
+      path_label: string
+      directory?: string
+      body_label?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            {
+              in: "path",
+              key: "path_label",
+              map: "label",
+            },
+            { in: "query", key: "directory" },
+            {
+              in: "body",
+              key: "body_label",
+              map: "label",
+            },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      ProviderOpenaiProfilesRenameResponses,
+      ProviderOpenaiProfilesRenameErrors,
+      ThrowOnError
+    >({
+      url: "/provider/openai/profiles/{label}/rename",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
 export class Provider extends HeyApiClient {
   /**
    * List providers
@@ -2158,6 +2346,11 @@ export class Provider extends HeyApiClient {
   private _oauth?: Oauth
   get oauth(): Oauth {
     return (this._oauth ??= new Oauth({ client: this.client }))
+  }
+
+  private _openaiProfiles?: OpenaiProfiles
+  get openaiProfiles(): OpenaiProfiles {
+    return (this._openaiProfiles ??= new OpenaiProfiles({ client: this.client }))
   }
 }
 
